@@ -7,9 +7,12 @@ A WordPress plugin that allows users to easily add structured data (Schema.org m
 - **User-Friendly Interface**: No need to write JSON manually - use simple forms instead
 - **Multiple Schema Types**: Support for Organization, Local Business, Person, Article, and Service schemas
 - **Real-time Preview**: See the generated JSON-LD markup as you type
+- **Schema Validation Tools**: Direct access to Schema.org validator and easy copying of markup
 - **Automatic Injection**: Schema markup is automatically added to the page head
 - **Form Validation**: Built-in validation for URLs, emails, and required fields
 - **Smart Country Selection**: 200+ countries with dropdown selection, automatically stores ISO 3166-1 alpha-2 codes for Schema.org compliance
+- **Media Library Integration**: Logo selection directly from WordPress media library
+- **Multiple Address Support**: Add multiple physical locations for organizations
 - **Responsive Design**: Works on all devices and screen sizes
 
 ## Supported Schema Types
@@ -17,10 +20,17 @@ A WordPress plugin that allows users to easily add structured data (Schema.org m
 ### 1. Organization
 - Organization name
 - Website URL
-- Logo URL
+- Logo (media library picker)
 - Description
 - Phone number
 - Email address
+- Multiple addresses with full postal details
+  - Address type selection (PostalAddress/Place)
+  - Street address
+  - City
+  - State/Region
+  - Postal code
+  - Country (dropdown with ISO codes)
 
 ### 2. Local Business
 - Business name
@@ -85,6 +95,15 @@ The plugin automatically injects the JSON-LD markup into the `<head>` section of
 1. Viewing the published page
 2. Right-clicking and selecting "View Page Source"
 3. Looking for `<script type="application/ld+json">` tags
+
+### Validating Your Schema
+
+The plugin provides two convenient tools for validating your schema markup:
+
+1. **Open Schema.org Validator**: Click the "Open Schema.org Validator" button to open the official [Schema.org validator](https://validator.schema.org/) in a new tab
+2. **Copy Schema Markup**: Click the "Copy Schema Markup" button to copy the generated JSON-LD to your clipboard, then paste it into the validator
+
+These tools make it easy to ensure your schema markup is valid and follows Schema.org standards.
 
 ## File Structure
 

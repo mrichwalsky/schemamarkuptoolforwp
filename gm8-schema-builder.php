@@ -24,6 +24,10 @@ class GM8_Schema_Manager {
         if (in_array($hook, ['post.php', 'post-new.php'])) {
             wp_enqueue_script('gm8-schema-admin', plugin_dir_url(__FILE__) . 'js/admin.js', ['jquery'], '0.1.0', true);
             wp_enqueue_style('gm8-schema-admin', plugin_dir_url(__FILE__) . 'css/admin.css', [], '0.1.0');
+            wp_enqueue_style('dashicons');
+            
+            // Enqueue media scripts for logo picker
+            wp_enqueue_media();
         }
     }
 
@@ -76,8 +80,19 @@ class GM8_Schema_Manager {
                         <td><input type="url" id="org_url" name="schema_data[Organization][url]" value="<?php echo esc_url($schema_data['Organization']['url'] ?? ''); ?>" class="regular-text" /></td>
                     </tr>
                     <tr>
-                        <th><label for="org_logo">Logo URL</label></th>
-                        <td><input type="url" id="org_logo" name="schema_data[Organization][logo]" value="<?php echo esc_url($schema_data['Organization']['logo'] ?? ''); ?>" class="regular-text" /></td>
+                        <th><label for="org_logo">Logo</label></th>
+                        <td>
+                            <div class="logo-picker-container">
+                                <input type="hidden" id="org_logo" name="schema_data[Organization][logo]" value="<?php echo esc_url($schema_data['Organization']['logo'] ?? ''); ?>" />
+                                <div class="logo-preview" style="margin-bottom: 10px;">
+                                    <?php if (!empty($schema_data['Organization']['logo'])): ?>
+                                        <img src="<?php echo esc_url($schema_data['Organization']['logo']); ?>" style="max-width: 150px; max-height: 150px; border: 1px solid #ddd; border-radius: 3px;" />
+                                    <?php endif; ?>
+                                </div>
+                                <button type="button" class="button select-logo">Select Logo</button>
+                                <button type="button" class="button remove-logo" style="margin-left: 10px; display: <?php echo !empty($schema_data['Organization']['logo']) ? 'inline-block' : 'none'; ?>;">Remove Logo</button>
+                            </div>
+                        </td>
                     </tr>
                     <tr>
                         <th><label for="org_description">Description</label></th>
@@ -90,6 +105,42 @@ class GM8_Schema_Manager {
                     <tr>
                         <th><label for="org_email">Email</label></th>
                         <td><input type="email" id="org_email" name="schema_data[Organization][email]" value="<?php echo esc_attr($schema_data['Organization']['email'] ?? ''); ?>" class="regular-text" /></td>
+                    </tr>
+                    <tr>
+                        <th><label for="org_addresses">Addresses</label></th>
+                        <td>
+                            <div id="org-addresses-container">
+                                <?php 
+                                $addresses = $schema_data['Organization']['address'] ?? [];
+                                if (is_array($addresses) && !empty($addresses)) {
+                                    foreach ($addresses as $index => $address) {
+                                        if (is_array($address) && isset($address['streetAddress'])) {
+                                            ?>
+                                            <div class="address-item" style="margin-bottom: 15px; padding: 15px; border: 1px solid #ddd; border-radius: 3px; background: #f9f9f9;">
+                                                <h5 style="margin: 0 0 10px 0; color: #23282d;"><?php echo count($addresses) > 1 ? 'Address ' . ($index + 1) : 'Address'; ?></h5>
+                                                <select name="schema_data[Organization][address][<?php echo $index; ?>][@type]" style="width: 100%; margin-bottom: 10px;">
+                                                    <option value="PostalAddress" <?php selected($address['@type'] ?? 'PostalAddress', 'PostalAddress'); ?>>Postal Address</option>
+                                                    <option value="Place" <?php selected($address['@type'] ?? '', 'Place'); ?>>Place</option>
+                                                </select>
+                                                <input type="text" name="schema_data[Organization][address][<?php echo $index; ?>][streetAddress]" placeholder="Street Address" value="<?php echo esc_attr($address['streetAddress'] ?? ''); ?>" class="regular-text" style="width: 100%; margin-bottom: 5px;" />
+                                                <input type="text" name="schema_data[Organization][address][<?php echo $index; ?>][addressLocality]" placeholder="City" value="<?php echo esc_attr($address['addressLocality'] ?? ''); ?>" class="regular-text" style="width: 100%; margin-bottom: 5px;" />
+                                                <input type="text" name="schema_data[Organization][address][<?php echo $index; ?>][addressRegion]" placeholder="State/Region" value="<?php echo esc_attr($address['addressRegion'] ?? ''); ?>" class="regular-text" style="width: 100%; margin-bottom: 5px;" />
+                                                <input type="text" name="schema_data[Organization][address][<?php echo $index; ?>][postalCode]" placeholder="Postal Code" value="<?php echo esc_attr($address['postalCode'] ?? ''); ?>" class="regular-text" style="width: 100%; margin-bottom: 5px;" />
+                                                <select name="schema_data[Organization][address][<?php echo $index; ?>][addressCountry]" style="width: 100%; margin-bottom: 10px;">
+                                                    <option value="">-- Select Country --</option>
+                                                    <?php echo GM8_Countries::get_select_options($address['addressCountry'] ?? ''); ?>
+                                                </select>
+                                                <button type="button" class="button remove-address" style="margin-top: 5px;">Remove Address</button>
+                                            </div>
+                                            <?php
+                                        }
+                                    }
+                                }
+                                ?>
+                            </div>
+                            <button type="button" class="button add-address" style="margin-top: 10px;">+ Add Address</button>
+                            <p class="description">Add the physical addresses for your organization. You can add multiple locations.</p>
+                        </td>
                     </tr>
                 </table>
             </div>
@@ -317,6 +368,7 @@ class GM8_Schema_Manager {
             <div id="schema-preview" style="display: none;">
                 <h4>Schema Preview</h4>
                 <div id="schema-json-preview" style="background: #f9f9f9; padding: 10px; border: 1px solid #ddd; font-family: monospace; font-size: 12px; max-height: 200px; overflow-y: auto;"></div>
+                <div id="schema-actions" style="margin-top: 15px; text-align: center;"></div>
             </div>
         </div>
         <?php
@@ -353,12 +405,30 @@ class GM8_Schema_Manager {
             
             $sanitized[$schema_type] = [];
             foreach ($fields as $field => $value) {
-                if ($field === 'address' && is_array($value)) {
-                    $sanitized[$schema_type][$field] = [];
-                    foreach ($value as $addr_field => $addr_value) {
-                        $sanitized[$schema_type][$field][$addr_field] = sanitize_text_field($addr_value);
-                    }
-                } elseif ($field === 'author' || $field === 'publisher' || $field === 'provider' || $field === 'worksFor') {
+                                 if ($field === 'address' && is_array($value)) {
+                     if ($schema_type === 'Organization') {
+                         // Handle Organization addresses as array of PostalAddress objects
+                         $sanitized[$schema_type][$field] = [];
+                         foreach ($value as $addr_index => $addr_data) {
+                             if (is_array($addr_data) && isset($addr_data['streetAddress'])) {
+                                 $sanitized[$schema_type][$field][] = [
+                                     '@type' => sanitize_text_field($addr_data['@type'] ?? 'PostalAddress'),
+                                     'streetAddress' => sanitize_text_field($addr_data['streetAddress']),
+                                     'addressLocality' => sanitize_text_field($addr_data['addressLocality']),
+                                     'addressRegion' => sanitize_text_field($addr_data['addressRegion']),
+                                     'postalCode' => sanitize_text_field($addr_data['postalCode']),
+                                     'addressCountry' => sanitize_text_field($addr_data['addressCountry'])
+                                 ];
+                             }
+                         }
+                     } else {
+                         // Handle LocalBusiness address as single object (existing logic)
+                         $sanitized[$schema_type][$field] = [];
+                         foreach ($value as $addr_field => $addr_value) {
+                             $sanitized[$schema_type][$field][$addr_field] = sanitize_text_field($addr_value);
+                         }
+                     }
+                 } elseif ($field === 'author' || $field === 'publisher' || $field === 'provider' || $field === 'worksFor') {
                     if (is_array($value)) {
                         $sanitized[$schema_type][$field] = [];
                         foreach ($value as $sub_field => $sub_value) {

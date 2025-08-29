@@ -113,8 +113,16 @@ jQuery(document).ready(function($) {
         }
 
         // Update preview
-        $('#schema-json-preview').html(
-            '<pre>' + JSON.stringify(finalSchema, null, 2) + '</pre>'
+        $('#schema-json-preview').html('<pre>' + JSON.stringify(finalSchema, null, 2) + '</pre>');
+        
+        // Update action buttons (outside the scrolling preview)
+        $('#schema-actions').html(
+            '<button type="button" class="button button-secondary open-validator" style="margin-right: 10px;">' +
+            '<span class="dashicons dashicons-external" style="margin-right: 5px;"></span>Open Schema.org Validator' +
+            '</button>' +
+            '<button type="button" class="button button-primary copy-schema">' +
+            '<span class="dashicons dashicons-clipboard" style="margin-right: 5px;"></span>Copy Schema Markup' +
+            '</button>'
         );
     }
 
@@ -144,6 +152,247 @@ jQuery(document).ready(function($) {
             $(this).next('.error-message').remove();
         }
     });
+
+    // Schema action buttons
+    $(document).on('click', '.open-validator', function() {
+        window.open('https://validator.schema.org/', '_blank');
+    });
+
+    $(document).on('click', '.copy-schema', function() {
+        var schemaText = $('#schema-json-preview pre').text();
+        if (schemaText) {
+            // Use the modern clipboard API if available
+            if (navigator.clipboard && window.isSecureContext) {
+                navigator.clipboard.writeText(schemaText).then(function() {
+                    // Show success feedback
+                    var $button = $(this);
+                    var originalText = $button.html();
+                    $button.html('<span class="dashicons dashicons-yes" style="margin-right: 5px;"></span>Copied!');
+                    $button.addClass('button-disabled').prop('disabled', true);
+                    
+                    setTimeout(function() {
+                        $button.html(originalText);
+                        $button.removeClass('button-disabled').prop('disabled', false);
+                    }, 2000);
+                }.bind(this)).catch(function(err) {
+                    console.error('Failed to copy: ', err);
+                    fallbackCopyTextToClipboard(schemaText, this);
+                });
+            } else {
+                // Fallback for older browsers
+                fallbackCopyTextToClipboard(schemaText, this);
+            }
+        }
+    });
+
+    // Fallback copy function for older browsers
+    function fallbackCopyTextToClipboard(text, buttonElement) {
+        var textArea = document.createElement('textarea');
+        textArea.value = text;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-999999px';
+        textArea.style.top = '-999999px';
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        
+        try {
+            var successful = document.execCommand('copy');
+            if (successful) {
+                // Show success feedback
+                var $button = $(buttonElement);
+                var originalText = $button.html();
+                $button.html('<span class="dashicons dashicons-yes" style="margin-right: 5px;"></span>Copied!');
+                $button.addClass('button-disabled').prop('disabled', true);
+                
+                setTimeout(function() {
+                    $button.html(originalText);
+                    $button.removeClass('button-disabled').prop('disabled', false);
+                }, 2000);
+            }
+        } catch (err) {
+            console.error('Fallback: Oops, unable to copy', err);
+        }
+        
+        document.body.removeChild(textArea);
+    }
+
+    // Organization logo picker functionality
+    $(document).on('click', '.select-logo', function() {
+        var $logoInput = $(this).siblings('input[type="hidden"]');
+        var $logoPreview = $(this).siblings('.logo-preview');
+        var $removeButton = $(this).siblings('.remove-logo');
+        
+        // Create media frame
+        var frame = wp.media({
+            title: 'Select Organization Logo',
+            button: {
+                text: 'Use this logo'
+            },
+            multiple: false,
+            library: {
+                type: 'image'
+            }
+        });
+
+        // When image selected
+        frame.on('select', function() {
+            var attachment = frame.state().get('selection').first().toJSON();
+            $logoInput.val(attachment.url);
+            $logoPreview.html('<img src="' + attachment.url + '" style="max-width: 150px; max-height: 150px; border: 1px solid #ddd; border-radius: 3px;" />');
+            $removeButton.show();
+            updateSchemaPreview();
+        });
+
+        frame.open();
+    });
+
+    $(document).on('click', '.remove-logo', function() {
+        var $logoInput = $(this).siblings('input[type="hidden"]');
+        var $logoPreview = $(this).siblings('.logo-preview');
+        $logoInput.val('');
+        $logoPreview.empty();
+        $(this).hide();
+        updateSchemaPreview();
+    });
+
+    // Organization address repeater functionality
+    var addressIndex = 0;
+    
+    // Initialize addressIndex based on existing addresses
+    function initializeAddressIndex() {
+        var existingAddresses = $('#org-addresses-container .address-item').length;
+        addressIndex = existingAddresses;
+    }
+    
+    // Call on page load
+    initializeAddressIndex();
+    
+    $(document).on('click', '.add-address', function() {
+        var container = $('#org-addresses-container');
+        var existingCount = container.find('.address-item').length;
+        var labelText = existingCount > 0 ? 'Address ' + (existingCount + 1) : 'Address';
+        
+        var newAddress = $('<div class="address-item" style="margin-bottom: 15px; padding: 15px; border: 1px solid #ddd; border-radius: 3px; background: #f9f9f9;">' +
+            '<h5 style="margin: 0 0 10px 0; color: #23282d;">' + labelText + '</h5>' +
+            '<select name="schema_data[Organization][address][' + addressIndex + '][@type]" class="regular-text" style="width: 100%; margin-bottom: 10px;">' +
+            '<option value="PostalAddress" selected>Postal Address</option>' +
+            '<option value="Place">Place</option>' +
+            '</select>' +
+            '<input type="text" name="schema_data[Organization][address][' + addressIndex + '][streetAddress]" placeholder="Street Address" class="regular-text" style="width: 100%; margin-bottom: 5px;" />' +
+            '<input type="text" name="schema_data[Organization][address][' + addressIndex + '][addressLocality]" placeholder="City" class="regular-text" style="width: 100%; margin-bottom: 5px;" />' +
+            '<input type="text" name="schema_data[Organization][address][' + addressIndex + '][addressRegion]" placeholder="State/Region" class="regular-text" style="width: 100%; margin-bottom: 5px;" />' +
+            '<input type="text" name="schema_data[Organization][address][' + addressIndex + '][postalCode]" placeholder="Postal Code" class="regular-text" style="width: 100%; margin-bottom: 5px;" />' +
+            '<select name="schema_data[Organization][address][' + addressIndex + '][addressCountry]" class="regular-text" style="width: 100%; margin-bottom: 10px;">' +
+            '<option value="">-- Select Country --</option>' +
+            '<option value="US">United States</option>' +
+            '<option value="GB">United Kingdom</option>' +
+            '<option value="CA">Canada</option>' +
+            '<option value="AU">Australia</option>' +
+            '<option value="DE">Germany</option>' +
+            '<option value="FR">France</option>' +
+            '<option value="IT">Italy</option>' +
+            '<option value="ES">Spain</option>' +
+            '<option value="NL">Netherlands</option>' +
+            '<option value="BE">Belgium</option>' +
+            '<option value="CH">Switzerland</option>' +
+            '<option value="AT">Austria</option>' +
+            '<option value="SE">Sweden</option>' +
+            '<option value="NO">Norway</option>' +
+            '<option value="DK">Denmark</option>' +
+            '<option value="FI">Finland</option>' +
+            '<option value="PL">Poland</option>' +
+            '<option value="CZ">Czech Republic</option>' +
+            '<option value="HU">Hungary</option>' +
+            '<option value="SK">Slovakia</option>' +
+            '<option value="SI">Slovenia</option>' +
+            '<option value="HR">Croatia</option>' +
+            '<option value="RS">Serbia</option>' +
+            '<option value="BG">Bulgaria</option>' +
+            '<option value="RO">Romania</option>' +
+            '<option value="GR">Greece</option>' +
+            '<option value="PT">Portugal</option>' +
+            '<option value="IE">Ireland</option>' +
+            '<option value="IS">Iceland</option>' +
+            '<option value="LU">Luxembourg</option>' +
+            '<option value="LI">Liechtenstein</option>' +
+            '<option value="MC">Monaco</option>' +
+            '<option value="AD">Andorra</option>' +
+            '<option value="SM">San Marino</option>' +
+            '<option value="VA">Vatican City</option>' +
+            '<option value="MT">Malta</option>' +
+            '<option value="CY">Cyprus</option>' +
+            '<option value="EE">Estonia</option>' +
+            '<option value="LV">Latvia</option>' +
+            '<option value="LT">Lithuania</option>' +
+            '<option value="JP">Japan</option>' +
+            '<option value="KR">South Korea</option>' +
+            '<option value="CN">China</option>' +
+            '<option value="IN">India</option>' +
+            '<option value="BR">Brazil</option>' +
+            '<option value="AR">Argentina</option>' +
+            '<option value="CL">Chile</option>' +
+            '<option value="MX">Mexico</option>' +
+            '<option value="NZ">New Zealand</option>' +
+            '<option value="ZA">South Africa</option>' +
+            '<option value="EG">Egypt</option>' +
+            '<option value="MA">Morocco</option>' +
+            '<option value="TN">Tunisia</option>' +
+            '<option value="DZ">Algeria</option>' +
+            '<option value="LY">Libya</option>' +
+            '<option value="SD">Sudan</option>' +
+            '<option value="ET">Ethiopia</option>' +
+            '<option value="KE">Kenya</option>' +
+            '<option value="UG">Uganda</option>' +
+            '<option value="TZ">Tanzania</option>' +
+            '<option value="ZM">Zambia</option>' +
+            '<option value="ZW">Zimbabwe</option>' +
+            '<option value="BW">Botswana</option>' +
+            '<option value="NA">Namibia</option>' +
+            '<option value="AO">Angola</option>' +
+            '<option value="MZ">Mozambique</option>' +
+            '<option value="MG">Madagascar</option>' +
+            '<option value="MU">Mauritius</option>' +
+            '<option value="SC">Seychelles</option>' +
+            '<option value="KM">Comoros</option>' +
+            '<option value="DJ">Djibouti</option>' +
+            '<option value="SO">Somalia</option>' +
+            '<option value="ER">Eritrea</option>' +
+            '</select>' +
+            '<button type="button" class="button remove-address" style="margin-top: 5px;">Remove Address</button>' +
+            '</div>');
+        
+        container.append(newAddress);
+        addressIndex++;
+        updateSchemaPreview();
+    });
+
+    // Remove organization address
+    $(document).on('click', '.remove-address', function() {
+        $(this).closest('.address-item').remove();
+        reindexAddresses();
+        updateSchemaPreview();
+    });
+
+    // Reindex organization addresses to ensure sequential naming
+    function reindexAddresses() {
+        var totalAddresses = $('#org-addresses-container .address-item').length;
+        $('#org-addresses-container .address-item').each(function(index) {
+            // Update label - only show number if there are multiple addresses
+            var labelText = totalAddresses > 1 ? 'Address ' + (index + 1) : 'Address';
+            $(this).find('h5').text(labelText);
+            
+            // Update field names
+            $(this).find('select[name*="[@type]"]').attr('name', 'schema_data[Organization][address][' + index + '][@type]');
+            $(this).find('input[name*="[streetAddress]"]').attr('name', 'schema_data[Organization][address][' + index + '][streetAddress]');
+            $(this).find('input[name*="[addressLocality]"]').attr('name', 'schema_data[Organization][address][' + index + '][addressLocality]');
+            $(this).find('input[name*="[addressRegion]"]').attr('name', 'schema_data[Organization][address][' + index + '][addressRegion]');
+            $(this).find('input[name*="[postalCode]"]').attr('name', 'schema_data[Organization][address][' + index + '][postalCode]');
+            $(this).find('select[name*="[addressCountry]"]').attr('name', 'schema_data[Organization][address][' + index + '][addressCountry]');
+        });
+        // Update addressIndex to be one more than the highest index
+        addressIndex = $('#org-addresses-container .address-item').length;
+    }
 
     function isValidUrl(string) {
         try {
@@ -183,7 +432,82 @@ jQuery(document).ready(function($) {
             '<option value="City">City</option>' +
             '<option value="AdministrativeArea">Administrative Area</option>' +
             '</select>' +
-            '<input type="text" name="schema_data[Service][areaServed][' + areaIndex + '][name]" placeholder="Location Name (e.g., USA, UK, Cleveland)" class="regular-text area-name-input" style="width: 250px;" />' +
+            '<select name="schema_data[Service][areaServed][' + areaIndex + '][name]" class="regular-text" style="width: 250px;">' +
+            '<option value="">-- Select Country --</option>' +
+            '<option value="US">United States</option>' +
+            '<option value="GB">United Kingdom</option>' +
+            '<option value="CA">Canada</option>' +
+            '<option value="AU">Australia</option>' +
+            '<option value="DE">Germany</option>' +
+            '<option value="FR">France</option>' +
+            '<option value="IT">Italy</option>' +
+            '<option value="ES">Spain</option>' +
+            '<option value="NL">Netherlands</option>' +
+            '<option value="BE">Belgium</option>' +
+            '<option value="CH">Switzerland</option>' +
+            '<option value="AT">Austria</option>' +
+            '<option value="SE">Sweden</option>' +
+            '<option value="NO">Norway</option>' +
+            '<option value="DK">Denmark</option>' +
+            '<option value="FI">Finland</option>' +
+            '<option value="PL">Poland</option>' +
+            '<option value="CZ">Czech Republic</option>' +
+            '<option value="HU">Hungary</option>' +
+            '<option value="SK">Slovakia</option>' +
+            '<option value="SI">Slovenia</option>' +
+            '<option value="HR">Croatia</option>' +
+            '<option value="RS">Serbia</option>' +
+            '<option value="BG">Bulgaria</option>' +
+            '<option value="RO">Romania</option>' +
+            '<option value="GR">Greece</option>' +
+            '<option value="PT">Portugal</option>' +
+            '<option value="IE">Ireland</option>' +
+            '<option value="IS">Iceland</option>' +
+            '<option value="LU">Luxembourg</option>' +
+            '<option value="LI">Liechtenstein</option>' +
+            '<option value="MC">Monaco</option>' +
+            '<option value="AD">Andorra</option>' +
+            '<option value="SM">San Marino</option>' +
+            '<option value="VA">Vatican City</option>' +
+            '<option value="MT">Malta</option>' +
+            '<option value="CY">Cyprus</option>' +
+            '<option value="EE">Estonia</option>' +
+            '<option value="LV">Latvia</option>' +
+            '<option value="LT">Lithuania</option>' +
+            '<option value="JP">Japan</option>' +
+            '<option value="KR">South Korea</option>' +
+            '<option value="CN">China</option>' +
+            '<option value="IN">India</option>' +
+            '<option value="BR">Brazil</option>' +
+            '<option value="AR">Argentina</option>' +
+            '<option value="CL">Chile</option>' +
+            '<option value="MX">Mexico</option>' +
+            '<option value="NZ">New Zealand</option>' +
+            '<option value="ZA">South Africa</option>' +
+            '<option value="EG">Egypt</option>' +
+            '<option value="MA">Morocco</option>' +
+            '<option value="TN">Tunisia</option>' +
+            '<option value="DZ">Algeria</option>' +
+            '<option value="LY">Libya</option>' +
+            '<option value="SD">Sudan</option>' +
+            '<option value="ET">Ethiopia</option>' +
+            '<option value="KE">Kenya</option>' +
+            '<option value="UG">Uganda</option>' +
+            '<option value="TZ">Tanzania</option>' +
+            '<option value="ZM">Zambia</option>' +
+            '<option value="ZW">Zimbabwe</option>' +
+            '<option value="BW">Botswana</option>' +
+            '<option value="NA">Namibia</option>' +
+            '<option value="AO">Angola</option>' +
+            '<option value="MZ">Mozambique</option>' +
+            '<option value="MG">Madagascar</option>' +
+            '<option value="MU">Mauritius</option>' +
+            '<option value="SC">Seychelles</option>' +
+            '<option value="KM">Comoros</option>' +
+            '<option value="DJ">Djibouti</option>' +
+            '<option value="SO">Somalia</option>' +
+            '<option value="ER">Eritrea</option>' +
+            '</select>' +
             '<button type="button" class="button remove-area" style="margin-left: 10px;">Remove</button>' +
             '</div>');
         
@@ -202,8 +526,8 @@ jQuery(document).ready(function($) {
     // Reindex service areas to ensure sequential naming
     function reindexServiceAreas() {
         $('#service-areas-container .service-area-item').each(function(index) {
-            $(this).find('select').attr('name', 'schema_data[Service][areaServed][' + index + '][@type]');
-            $(this).find('input').attr('name', 'schema_data[Service][areaServed][' + index + '][name]');
+            $(this).find('select[name*="[@type]"]').attr('name', 'schema_data[Service][areaServed][' + index + '][@type]');
+            $(this).find('input[name*="[name]"], select[name*="[name]"]').attr('name', 'schema_data[Service][areaServed][' + index + '][name]');
         });
         // Update areaIndex to be one more than the highest index
         areaIndex = $('#service-areas-container .service-area-item').length;
