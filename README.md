@@ -42,13 +42,19 @@ A WordPress plugin that allows users to easily add structured data (Schema.org m
 - Opening hours
 
 ### 3. Person
+- Honorific prefix (Mr., Dr., Prof., etc.)
 - Full name
+- Honorific suffix (M.D., Ph.D., MBA, etc.)
+- Birth date
 - Job title
-- Works for (company/organization) with type selection
+- Works for (company/organization) with type selection and URL
 - Description
 - Email address
 - Phone number
-- Profile image
+- Profile image (media library picker)
+- Expertise/topics (knowsAbout)
+- Languages spoken (knowsLanguage)
+- Optional postal address with full details
 
 ### 4. Article
 - Headline
@@ -75,7 +81,8 @@ A WordPress plugin that allows users to easily add structured data (Schema.org m
 
 1. Upload the plugin files to the `/wp-content/plugins/schemagm8/` directory
 2. Activate the plugin through the 'Plugins' menu in WordPress
-3. The "Schema.org Data" meta box will appear on posts, pages, and custom post types
+3. The "Schema.org Data" meta box will appear on posts and pages by default
+4. Configure which post types should display the schema box in **Settings > GM8 Schema Manager**
 
 ## Usage
 
@@ -105,17 +112,14 @@ The plugin provides two convenient tools for validating your schema markup:
 
 These tools make it easy to ensure your schema markup is valid and follows Schema.org standards.
 
-## File Structure
+### Plugin Settings
 
-```
-schemagm8/
-├── gm8-schema-builder.php    # Main plugin file
-├── js/
-│   └── admin.js              # JavaScript for admin interface
-├── css/
-│   └── admin.css             # Styles for admin interface
-└── README.md                 # This file
-```
+Configure the plugin behavior in **Settings > GM8 Schema Manager**:
+
+- **Post Type Selection**: Choose which post types should display the Schema.org data meta box
+- **Default Selection**: Posts and pages are enabled by default
+- **Custom Post Types**: All public custom post types are automatically detected and can be enabled/disabled
+- **Dynamic Updates**: Changes take effect immediately after saving
 
 ## Technical Details
 
@@ -153,7 +157,15 @@ Feel free to submit issues, feature requests, or pull requests to improve the pl
 
 ## License
 
-This plugin is developed by Gas Mark 8, Ltd. Please contact for licensing information.
+This plugin is developed by Gas Mark 8, Ltd. and is licensed under the GNU General Public License v3.0 (GPL v3).
+
+**GPL v3 License Terms:**
+- You are free to use, modify, and distribute this plugin
+- Any derivative works must also be licensed under GPL v3
+- Source code must be made available when distributing
+- No warranty is provided
+
+For the complete GPL v3 license text, visit: https://www.gnu.org/licenses/gpl-3.0.html
 
 ## Changelog
 

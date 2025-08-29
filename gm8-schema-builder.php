@@ -18,6 +18,10 @@ class GM8_Schema_Manager {
         add_action('save_post', [$this, 'save_schema_data']);
         add_action('wp_head', [$this, 'inject_schema']);
         add_action('admin_enqueue_scripts', [$this, 'enqueue_admin_scripts']);
+        
+        // Add settings page
+        add_action('admin_menu', [$this, 'add_settings_page']);
+        add_action('admin_init', [$this, 'register_settings']);
     }
 
     public function enqueue_admin_scripts($hook) {
@@ -32,16 +36,19 @@ class GM8_Schema_Manager {
     }
 
     public function add_schema_metabox() {
-        $screens = ['post', 'page', 'people']; // Add other CPTs as needed
-        foreach ($screens as $screen) {
-            add_meta_box(
-                'gm8_schema_box',
-                'Schema.org Data',
-                [$this, 'render_schema_box'],
-                $screen,
-                'normal',
-                'default'
-            );
+        $enabled_post_types = get_option('gm8_schema_enabled_post_types', ['post', 'page']);
+        
+        foreach ($enabled_post_types as $post_type) {
+            if (post_type_exists($post_type)) {
+                add_meta_box(
+                    'gm8_schema_box',
+                    'Schema.org Data',
+                    [$this, 'render_schema_box'],
+                    $post_type,
+                    'normal',
+                    'default'
+                );
+            }
         }
     }
 
@@ -194,8 +201,20 @@ class GM8_Schema_Manager {
                 <h4>Person Information</h4>
                 <table class="form-table">
                     <tr>
+                        <th><label for="person_honorific_prefix">Title</label></th>
+                        <td><input type="text" id="person_honorific_prefix" name="schema_data[Person][honorificPrefix]" value="<?php echo esc_attr($schema_data['Person']['honorificPrefix'] ?? ''); ?>" class="regular-text" placeholder="Mr., Dr., Prof., etc." /></td>
+                    </tr>
+                    <tr>
                         <th><label for="person_name">Full Name</label></th>
                         <td><input type="text" id="person_name" name="schema_data[Person][name]" value="<?php echo esc_attr($schema_data['Person']['name'] ?? ''); ?>" class="regular-text" /></td>
+                    </tr>
+                    <tr>
+                        <th><label for="person_honorific_suffix">Suffix</label></th>
+                        <td><input type="text" id="person_honorific_suffix" name="schema_data[Person][honorificSuffix]" value="<?php echo esc_attr($schema_data['Person']['honorificSuffix'] ?? ''); ?>" class="regular-text" placeholder="M.D., Ph.D., MBA, etc." /></td>
+                    </tr>
+                    <tr>
+                        <th><label for="person_birthdate">Birth Date</label></th>
+                        <td><input type="date" id="person_birthdate" name="schema_data[Person][birthDate]" value="<?php echo esc_attr($schema_data['Person']['birthDate'] ?? ''); ?>" /></td>
                     </tr>
                     <tr>
                         <th><label for="person_job_title">Job Title</label></th>
@@ -208,7 +227,8 @@ class GM8_Schema_Manager {
                                 <option value="Organization" <?php selected($schema_data['Person']['worksFor']['@type'] ?? '', 'Organization'); ?>>Organization</option>
                                 <option value="LocalBusiness" <?php selected($schema_data['Person']['worksFor']['@type'] ?? '', 'LocalBusiness'); ?>>Local Business</option>
                             </select>
-                            <input type="text" id="person_works_for" name="schema_data[Person][worksFor][name]" placeholder="Company/Organization Name" value="<?php echo esc_attr($schema_data['Person']['worksFor']['name'] ?? ''); ?>" class="regular-text" />
+                            <input type="text" id="person_works_for" name="schema_data[Person][worksFor][name]" placeholder="Company/Organization Name" value="<?php echo esc_attr($schema_data['Person']['worksFor']['name'] ?? ''); ?>" class="regular-text" style="width: 200px; margin-right: 10px;" />
+                            <input type="url" name="schema_data[Person][worksFor][url]" placeholder="Company Website URL" value="<?php echo esc_url($schema_data['Person']['worksFor']['url'] ?? ''); ?>" class="regular-text" style="width: 250px;" />
                         </td>
                     </tr>
                     <tr>
@@ -224,8 +244,64 @@ class GM8_Schema_Manager {
                         <td><input type="tel" id="person_phone" name="schema_data[Person][telephone]" value="<?php echo esc_attr($schema_data['Person']['telephone'] ?? ''); ?>" class="regular-text" /></td>
                     </tr>
                     <tr>
-                        <th><label for="person_image">Image URL</label></th>
-                        <td><input type="url" id="person_image" name="schema_data[Person][image]" value="<?php echo esc_url($schema_data['Person']['image'] ?? ''); ?>" class="regular-text" /></td>
+                        <th><label for="person_image">Profile Image</label></th>
+                        <td>
+                            <div class="image-picker-container">
+                                <input type="hidden" id="person_image" name="schema_data[Person][image]" value="<?php echo esc_url($schema_data['Person']['image'] ?? ''); ?>" />
+                                <div class="image-preview" style="margin-bottom: 10px;">
+                                    <?php if (!empty($schema_data['Person']['image'])): ?>
+                                        <img src="<?php echo esc_url($schema_data['Person']['image']); ?>" style="max-width: 150px; max-height: 150px; border: 1px solid #ddd; border-radius: 3px;" />
+                                    <?php endif; ?>
+                                </div>
+                                <button type="button" class="button select-image">Select Image</button>
+                                <button type="button" class="button remove-image" style="margin-left: 10px; display: <?php echo !empty($schema_data['Person']['image']) ? 'inline-block' : 'none'; ?>;">Remove Image</button>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th><label for="person_knows_about">Expertise/Topics</label></th>
+                        <td><textarea id="person_knows_about" name="schema_data[Person][knowsAbout]" rows="3" class="large-text" placeholder="Enter topics, skills, or areas of expertise (one per line or comma-separated)"><?php echo esc_textarea($schema_data['Person']['knowsAbout'] ?? ''); ?></textarea>
+                        <p class="description">Enter topics, skills, or areas of expertise. You can separate multiple items with commas or put each on a new line.</p></td>
+                    </tr>
+                    <tr>
+                        <th><label for="person_knows_language">Languages Spoken</label></th>
+                        <td><textarea id="person_knows_language" name="schema_data[Person][knowsLanguage]" rows="3" class="large-text" placeholder="Enter languages spoken (one per line or comma-separated)"><?php echo esc_textarea($schema_data['Person']['knowsLanguage'] ?? ''); ?></textarea>
+                        <p class="description">Enter languages spoken. You can separate multiple languages with commas or put each on a new line.</p></td>
+                    </tr>
+                    <tr>
+                        <th><label for="person_address">Postal Address</label></th>
+                        <td>
+                            <div id="person-address-container">
+                                <?php 
+                                $person_address = $schema_data['Person']['address'] ?? [];
+                                if (is_array($person_address) && !empty($person_address) && isset($person_address['streetAddress'])) {
+                                    ?>
+                                    <div class="address-item" style="margin-bottom: 15px; padding: 15px; border: 1px solid #ddd; border-radius: 3px; background: #f9f9f9;">
+                                        <h5 style="margin: 0 0 10px 0; color: #23282d;">Address</h5>
+                                        <select name="schema_data[Person][address][@type]" style="width: 100%; margin-bottom: 10px;">
+                                            <option value="PostalAddress" <?php selected($person_address['@type'] ?? 'PostalAddress', 'PostalAddress'); ?>>Postal Address</option>
+                                            <option value="Place" <?php selected($person_address['@type'] ?? '', 'Place'); ?>>Place</option>
+                                        </select>
+                                        <input type="text" name="schema_data[Person][address][streetAddress]" placeholder="Street Address" value="<?php echo esc_attr($person_address['streetAddress'] ?? ''); ?>" class="regular-text" style="width: 100%; margin-bottom: 5px;" />
+                                        <input type="text" name="schema_data[Person][address][addressLocality]" placeholder="City" value="<?php echo esc_attr($person_address['addressLocality'] ?? ''); ?>" class="regular-text" style="width: 100%; margin-bottom: 5px;" />
+                                        <input type="text" name="schema_data[Person][address][addressRegion]" placeholder="State/Region" value="<?php echo esc_attr($person_address['addressRegion'] ?? ''); ?>" class="regular-text" style="width: 100%; margin-bottom: 5px;" />
+                                        <input type="text" name="schema_data[Person][address][postalCode]" placeholder="Postal Code" value="<?php echo esc_attr($person_address['postalCode'] ?? ''); ?>" class="regular-text" style="width: 100%; margin-bottom: 5px;" />
+                                        <select name="schema_data[Person][address][addressCountry]" style="width: 100%; margin-bottom: 10px;">
+                                            <option value="">-- Select Country --</option>
+                                            <?php echo GM8_Countries::get_select_options($person_address['addressCountry'] ?? ''); ?>
+                                        </select>
+                                        <button type="button" class="button remove-person-address" style="margin-top: 5px;">Remove Address</button>
+                                    </div>
+                                    <?php
+                                } else {
+                                    ?>
+                                    <button type="button" class="button add-person-address">+ Add Address</button>
+                                    <p class="description">Optional: Add a postal address for this person.</p>
+                                    <?php
+                                }
+                                ?>
+                            </div>
+                        </td>
                     </tr>
                 </table>
             </div>
@@ -411,15 +487,22 @@ class GM8_Schema_Manager {
                          $sanitized[$schema_type][$field] = [];
                          foreach ($value as $addr_index => $addr_data) {
                              if (is_array($addr_data) && isset($addr_data['streetAddress'])) {
-                                 $sanitized[$schema_type][$field][] = [
-                                     '@type' => sanitize_text_field($addr_data['@type'] ?? 'PostalAddress'),
-                                     'streetAddress' => sanitize_text_field($addr_data['streetAddress']),
-                                     'addressLocality' => sanitize_text_field($addr_data['addressLocality']),
-                                     'addressRegion' => sanitize_text_field($addr_data['addressRegion']),
-                                     'postalCode' => sanitize_text_field($addr_data['postalCode']),
-                                     'addressCountry' => sanitize_text_field($addr_data['addressCountry'])
-                                 ];
+                                 // Only add addresses that have at least a street address
+                                 if (!empty($addr_data['streetAddress'])) {
+                                     $sanitized[$schema_type][$field][] = [
+                                         '@type' => sanitize_text_field($addr_data['@type'] ?? 'PostalAddress'),
+                                         'streetAddress' => sanitize_text_field($addr_data['streetAddress']),
+                                         'addressLocality' => sanitize_text_field($addr_data['addressLocality']),
+                                         'addressRegion' => sanitize_text_field($addr_data['addressRegion']),
+                                         'postalCode' => sanitize_text_field($addr_data['postalCode']),
+                                         'addressCountry' => sanitize_text_field($addr_data['addressCountry'])
+                                     ];
+                                 }
                              }
+                         }
+                         // If only one address, convert to single object instead of array
+                         if (count($sanitized[$schema_type][$field]) === 1) {
+                             $sanitized[$schema_type][$field] = $sanitized[$schema_type][$field][0];
                          }
                      } else {
                          // Handle LocalBusiness address as single object (existing logic)
@@ -458,17 +541,22 @@ class GM8_Schema_Manager {
                         }
                         error_log('GM8 Schema - Final areaServed: ' . print_r($sanitized[$schema_type][$field], true));
                     }
-                } elseif ($field === 'openingHours') {
-                    $sanitized[$schema_type][$field] = sanitize_textarea_field($value);
-                } elseif (in_array($field, ['url', 'logo', 'image'])) {
-                    $sanitized[$schema_type][$field] = sanitize_url($value);
-                } elseif (in_array($field, ['email', 'telephone'])) {
-                    $sanitized[$schema_type][$field] = sanitize_text_field($value);
-                } elseif (in_array($field, ['datePublished', 'dateModified'])) {
-                    $sanitized[$schema_type][$field] = sanitize_text_field($value);
-                } else {
-                    $sanitized[$schema_type][$field] = sanitize_textarea_field($value);
-                }
+                                 } elseif ($field === 'openingHours') {
+                     $sanitized[$schema_type][$field] = sanitize_textarea_field($value);
+                 } elseif (in_array($field, ['url', 'logo', 'image'])) {
+                     $sanitized[$schema_type][$field] = sanitize_url($value);
+                 } elseif (in_array($field, ['email', 'telephone'])) {
+                     $sanitized[$schema_type][$field] = sanitize_text_field($value);
+                 } elseif (in_array($field, ['datePublished', 'dateModified', 'birthDate'])) {
+                     $sanitized[$schema_type][$field] = sanitize_text_field($value);
+                 } elseif (in_array($field, ['honorificPrefix', 'honorificSuffix', 'jobTitle'])) {
+                     $sanitized[$schema_type][$field] = sanitize_text_field($value);
+                 } elseif (in_array($field, ['knowsAbout', 'knowsLanguage'])) {
+                     // Handle multi-line text fields for expertise and languages
+                     $sanitized[$schema_type][$field] = sanitize_textarea_field($value);
+                 } else {
+                     $sanitized[$schema_type][$field] = sanitize_textarea_field($value);
+                 }
             }
         }
         
@@ -507,6 +595,92 @@ class GM8_Schema_Manager {
         }
 
         echo "<script type='application/ld+json'>" . wp_json_encode($json, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT) . "</script>\n";
+    }
+
+    /**
+     * Add settings page to WordPress admin menu
+     */
+    public function add_settings_page() {
+        add_options_page(
+            'GM8 Schema Manager Settings',
+            'GM8 Schema Manager',
+            'manage_options',
+            'gm8-schema-settings',
+            [$this, 'render_settings_page']
+        );
+    }
+
+    /**
+     * Register plugin settings
+     */
+    public function register_settings() {
+        register_setting('gm8_schema_settings', 'gm8_schema_enabled_post_types');
+        
+        add_settings_section(
+            'gm8_schema_post_types_section',
+            'Post Type Settings',
+            [$this, 'render_post_types_section'],
+            'gm8-schema-settings'
+        );
+        
+        add_settings_field(
+            'gm8_schema_enabled_post_types',
+            'Enable Schema Box on Post Types',
+            [$this, 'render_post_types_field'],
+            'gm8-schema-settings',
+            'gm8_schema_post_types_section'
+        );
+    }
+
+    /**
+     * Render the settings page
+     */
+    public function render_settings_page() {
+        if (!current_user_can('manage_options')) {
+            return;
+        }
+        ?>
+        <div class="wrap">
+            <h1><?php echo esc_html(get_admin_page_title()); ?></h1>
+            <form method="post" action="options.php">
+                <?php
+                settings_fields('gm8_schema_settings');
+                do_settings_sections('gm8-schema-settings');
+                submit_button();
+                ?>
+            </form>
+        </div>
+        <?php
+    }
+
+    /**
+     * Render the post types section description
+     */
+    public function render_post_types_section() {
+        echo '<p>Select which post types should display the Schema.org data meta box:</p>';
+    }
+
+    /**
+     * Render the post types field
+     */
+    public function render_post_types_field() {
+        $enabled_post_types = get_option('gm8_schema_enabled_post_types', ['post', 'page']);
+        $available_post_types = get_post_types(['public' => true], 'objects');
+        
+        foreach ($available_post_types as $post_type => $post_type_obj) {
+            $checked = in_array($post_type, $enabled_post_types) ? 'checked' : '';
+            $label = $post_type_obj->labels->singular_name;
+            ?>
+            <label style="display: block; margin-bottom: 8px;">
+                <input type="checkbox" 
+                       name="gm8_schema_enabled_post_types[]" 
+                       value="<?php echo esc_attr($post_type); ?>" 
+                       <?php echo $checked; ?> />
+                <?php echo esc_html($label); ?>
+                <small style="color: #666;">(<?php echo esc_html($post_type); ?>)</small>
+            </label>
+            <?php
+        }
     }
 }
 
