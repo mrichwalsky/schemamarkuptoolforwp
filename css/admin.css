@@ -1,0 +1,213 @@
+.gm8-schema-container {
+    margin: 20px 0;
+}
+
+.gm8-schema-container h4 {
+    margin: 20px 0 15px 0;
+    padding: 10px 15px;
+    background: #f1f1f1;
+    border-left: 4px solid #0073aa;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.schema-form {
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 20px;
+    margin: 15px 0;
+}
+
+.schema-form table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.schema-form th {
+    text-align: left;
+    vertical-align: top;
+    padding: 8px 10px 8px 0;
+    width: 25%;
+    font-weight: 600;
+    color: #23282d;
+}
+
+.schema-form td {
+    padding: 8px 0;
+    vertical-align: top;
+}
+
+.schema-form input[type="text"],
+.schema-form input[type="url"],
+.schema-form input[type="email"],
+.schema-form input[type="tel"],
+.schema-form input[type="date"] {
+    width: 100%;
+    max-width: 400px;
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 3px;
+    font-size: 14px;
+    line-height: 1.4;
+    transition: border-color 0.15s ease-in-out;
+}
+
+.schema-form input[type="text"]:focus,
+.schema-form input[type="url"]:focus,
+.schema-form input[type="email"]:focus,
+.schema-form input[type="tel"]:focus,
+.schema-form input[type="date"]:focus {
+    border-color: #0073aa;
+    outline: none;
+    box-shadow: 0 0 0 1px #0073aa;
+}
+
+.schema-form textarea {
+    width: 100%;
+    max-width: 500px;
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 3px;
+    font-size: 14px;
+    line-height: 1.4;
+    resize: vertical;
+    transition: border-color 0.15s ease-in-out;
+}
+
+.schema-form textarea:focus {
+    border-color: #0073aa;
+    outline: none;
+    box-shadow: 0 0 0 1px #0073aa;
+}
+
+.schema-form select {
+    width: 100%;
+    max-width: 400px;
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 3px;
+    font-size: 14px;
+    line-height: 1.4;
+    background: #fff;
+    cursor: pointer;
+}
+
+.schema-form select:focus {
+    border-color: #0073aa;
+    outline: none;
+    box-shadow: 0 0 0 1px #0073aa;
+}
+
+.schema-form .description {
+    margin: 5px 0 0 0;
+    font-size: 12px;
+    color: #666;
+    font-style: italic;
+}
+
+.schema-form input.error {
+    border-color: #dc3232;
+    box-shadow: 0 0 0 1px #dc3232;
+}
+
+.schema-form .error-message {
+    display: block;
+    margin: 5px 0 0 0;
+    font-size: 12px;
+    color: #dc3232;
+}
+
+#schema-preview {
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 20px;
+    margin: 15px 0;
+}
+
+#schema-preview h4 {
+    margin: 0 0 15px 0;
+    padding: 10px 15px;
+    background: #f1f1f1;
+    border-left: 4px solid #0073aa;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+#schema-json-preview {
+    background: #f9f9f9;
+    border: 1px solid #ddd;
+    border-radius: 3px;
+    padding: 15px;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    font-size: 12px;
+    line-height: 1.4;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+#schema-json-preview pre {
+    margin: 0;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+
+/* Address fields styling */
+.schema-form input[name*="[address]"] {
+    margin-bottom: 5px;
+}
+
+.schema-form input[name*="[address]"]:last-child {
+    margin-bottom: 0;
+}
+
+/* Responsive adjustments */
+@media (max-width: 782px) {
+    .schema-form th,
+    .schema-form td {
+        display: block;
+        width: 100%;
+        padding: 5px 0;
+    }
+    
+    .schema-form th {
+        padding-bottom: 0;
+        font-weight: 600;
+    }
+    
+    .schema-form input[type="text"],
+    .schema-form input[type="url"],
+    .schema-form input[type="email"],
+    .schema-form input[type="tel"],
+    .schema-form input[type="date"],
+    .schema-form textarea,
+    .schema-form select {
+        max-width: 100%;
+    }
+}
+
+/* Loading state */
+.schema-form.loading {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+.schema-form.loading::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 20px;
+    height: 20px;
+    margin: -10px 0 0 -10px;
+    border: 2px solid #f3f3f3;
+    border-top: 2px solid #0073aa;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
